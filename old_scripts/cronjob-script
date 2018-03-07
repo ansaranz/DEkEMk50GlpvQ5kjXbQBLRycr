@@ -1,0 +1,15 @@
+#Cron Jobs
+  echo -e "Cron Jobs\n======================\n"
+  if [ "$(ls -l /var/spool/cron/ | grep -v total | awk '{print $5}' | sort -u)" -eq 0 ] ; then
+  	echo -e "Cronjobs not Configured \n"
+  elif [ "$(ls -l /var/spool/cron/ | wc -l)" -eq 1 ] ; then
+  	echo -e "Cronjobs not Set \n"
+  else
+	for CRONUSER in $(ls -l /var/spool/cron/ |awk '{print $9}') ; do
+	## print value is 9 for centos ###
+	echo -e "$CRONUSER user" 
+	crontab -u "$CRONUSER" -l 
+	echo -e "------------------------------------------------------------" 
+	done
+	echo -e "\n" 
+  fi

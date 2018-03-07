@@ -1,0 +1,54 @@
+
+#!/bin/bash
+
+#Directory for RHC detail collection
+mkdir /tmp/kuwaitnet-rhc-`hostname` && cd /tmp/kuwaitnet-rhc-`hostname` && pwd
+
+hostname >> host-name
+
+ifconfig -a >> ifconfig-a
+ip a >> ip-a
+df -hT >> df-hT
+fdisk -l >> fdisk-l
+
+free -m >> free-m
+cat /proc/meminfo >> meminfo
+
+cp -v /etc/redhat-release .
+uname -a >> uname-a
+subscription-manager status >> subscription-manager-status
+
+date >> date
+ntpstat >> ntpstat
+
+
+systemctl status ntpdate.service >> ntpdate.service
+ntpq -p >> ntp-peers
+
+chkconfig --list >> chkconfig-l
+sestatus >> sestatus
+
+
+iptables -L >> iptables-L
+
+
+systemctl status firewalld.service >> firewalld.service
+
+
+
+cat /var/log/secure* |egrep -i 'failed|error|invalid|warning' >> secure-failed
+cat /var/log/messages* |egrep -i 'failed|error|memory|invalid' >> messages-failed
+cp -v /var/log/messages .
+cp -v /var/log/secure .
+cp -v /var/log/dmesg .
+cp -v /var/log/audit/audit.log .
+
+
+lscpu >> lscpu
+
+###########################
+cd /tmp
+tar -cvzf kuwaitnet-rhc-`hostname`.tgz kuwaitnet-rhc-`hostname` 
+
+
+exit 0

@@ -1,0 +1,162 @@
+#!/bin/bash
+#Author : Jobin Joseph
+#Web : www.JobinJoseph.com
+#Company : KuwaitNET
+#RHEL 6
+
+SNAME=`hostname`
+DATE=`date +%d_%b_%Y`
+REPORT=/tmp/KuwaitNET-`hostname`-$DATE-hc-report
+touch $REPORT
+
+#VERSION=`cat /etc/redhat-release | awk '{print $7}' | cut -d'.' -f1`
+
+## Functions ##
+
+#disk Usage
+disk_usage () {
+#df -hT | grep -vE '^Filesystem|tmpfs|cdrom' | awk '{ print $6 " " $2 " " $1}' | while read dfout;
+#do
+dfout=`df -hT | grep -vE '^Filesystem|tmpfs|cdrom' | awk '{ print $6 " " $2 " " $1}'`
+  dfperc=$(echo $dfout | awk '{ print $1}' | cut -d'%' -f1)
+  dfpart=$(echo $dfout | awk '{ print $3 }')
+  dffs=$(echo $dfout | awk '{print $2}')
+  if [ $dfperc -ge 90 ]; then
+    echo $dfpart - $dffs - $dfperc%
+  else
+    echo "Disk usage is normal"
+  fi
+#done
+};
+
+##rhn_check
+rhel6_reg_check () {
+
+rhn_check
+if [ $? -eq 0 ] ; then
+echo "System has a Valid RHN registration"
+   #echo "Software Updates : `yum check-update --security |grep -i available`" >> $REPORT
+   echo -e "\n" >> $REPORT
+else
+echo -e "Failed[RHN]: Not Registered with RedHat !!! "
+fi
+};
+
+
+
+
+
+## NTP CHECK ##
+ntp-check () {
+ echo -e "\n Checking NTP Service" >> $REPORT
+ echo "====================" >> $REPORT
+ service ntpd status > /dev/null
+ if [ $? -eq 0 ] ; then
+    echo -e "\t NTPD Configured in the server" >> $REPORT
+    echo -e "\n NTPSTAT :\n `ntpstat 2>&1`"  >> $REPORT
+    echo -e "PEER: \n `ntpq -p`" >> $REPORT
+    else
+       echo "ntp not configured"
+ fi
+};
+
+
+
+
+#Intro
+echo "Healthcheck Report"> $REPORT
+echo "#################################" >> $REPORT
+echo "Author : Jobin Joseph" >> $REPORT
+echo "Company: KuwaitNET" >> $REPORT
+echo "Date	: $DATE">> $REPORT
+echo -e "\n" >> $REPORT
+
+#system information
+echo "System Information" >> $REPORT
+echo "==================" >> $REPORT
+echo "Hostname : `hostname`" >> $REPORT
+echo "OS Release : `cat /etc/redhat-release`" >> $REPORT
+echo "Kernel : `uname  -r`" >> $REPORT
+echo "Last Boot : `who -b | awk '{print $3,$4}'`" >> $REPORT
+echo "Uptime : `uptime | sed 's/.*up \([^,]*\), .*/\1/'`" >> $REPORT
+echo "NTP : `ntp-check`" >> $REPORT
+echo "Date : `date`" >> $REPORT
+echo -e "IP addresses : `ifconfig |grep "inet " | grep -v 127.0.0.1  | awk '{print $2}' |cut -d":" -f2 | tr "\n" "\t"` \n \n " >> $REPORT
+echo -e "Redhat Registration Check " >> $REPORT
+echo  "========================" >> $REPORT
+echo "`rhel6_reg_check`" >> $REPORT
+
+
+
+#System Information
+echo -e "\n Hardware Information" >> $REPORT
+echo "====================" >> $REPORT
+#echo "Number of CPUs : `lscpu | grep -e "^CPU(s):" | cut -f2 -d: | awk '{print $1}'`" >> $REPORT
+echo "Number of CPUs : `cat /proc/cpuinfo  |grep processor |wc -l`" >> $REPORT
+echo "Load Average : `uptime | awk -F'load average:' '{ print $2 }' | cut -f1 -d,`" >> $REPORT
+echo "RAM Total: `free -m | head -2 | tail -1| awk '{print $2}'` MB" >> $REPORT
+echo "RAM Free: `free -m | head -2 | tail -1| awk '{print $4}'` MB" >> $REPORT
+echo "SWAP Total: `free -m | head -4 | tail -1| awk '{print $2}'` MB" >> $REPORT
+echo "SWAP Free: `free -m | head -4 | tail -1| awk '{print $4}'` MB" >> $REPORT
+echo -e "Highest Disk usage : `disk_usage`" >> $REPORT
+echo -e "\n" >> $REPORT
+
+#selinux
+echo "SElinux" >> $REPORT
+echo "=============" >> $REPORT
+sestatus >> $REPORT
+echo -e "\n" >> $REPORT
+
+#firewall rules
+echo "Firewall Rules" >> $REPORT
+echo "=============" >> $REPORT
+iptables -L >> $REPORT
+echo -e "\n" >> $REPORT
+
+#memory information
+echo "Memmory Usage" >> $REPORT
+echo "======================" >> $REPORT
+free -m >> $REPORT
+echo -e "\n" >> $REPORT
+
+#Services running
+echo "Netstat" >> $REPORT
+echo "======================" >> $REPORT
+netstat -ntlp >> $REPORT
+echo -e "\n" >> $REPORT
+
+#load and processes
+echo "Load and Session Users" >> $REPORT
+echo "======================" >> $REPORT
+w>> $REPORT
+echo -e "\n" >> $REPORT
+
+echo "Top Processes" >> $REPORT
+echo "======================" >> $REPORT
+top -n 1 -b |head -n 12|tail -n 6  >> $REPORT
+echo -e "\n" >> $REPORT
+
+#Disk Usage
+echo "Disk Usage" >> $REPORT
+echo "======================" >> $REPORT
+df -hT >> $REPORT
+echo -e "\n" >> $REPORT
+
+#Messages
+echo "Message Log" >> $REPORT
+echo "======================" >> $REPORT
+cat /var/log/messages|egrep '(error|fail|invalid)' >> $REPORT
+echo -e "\n" >> $REPORT
+
+echo "Secure Log" >> $REPORT
+echo "======================" >> $REPORT
+cat /var/log/secure|egrep '(error|fail|invalid)' >> $REPORT
+echo -e "\n" >> $REPORT
+
+more $REPORT
+#gzip report
+gzip $REPORT
+chmod 777 $REPORT.gz
+echo Report created at $REPORT.gz
+exit 0
+

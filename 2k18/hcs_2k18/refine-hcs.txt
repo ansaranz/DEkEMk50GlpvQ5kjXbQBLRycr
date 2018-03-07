@@ -1,0 +1,218 @@
+HCS-NEW-----------------------------REFINE SCRIPT OUT-----------
+=========================================================================
+
+Manufacturer and Product Info-dmidecode
+------------------------------
+for i in $(cat list); do echo $i------;cat extracted/$i/dmidecode | grep -A10 "System Information" | egrep -i "Manufacturer|Product" ; done
+
+Memory Medule Installed- dmidecode
+-----------------------------
+
+for i in $(cat list); do echo $i------;cat extracted/$i/dmidecode | grep -A5 "Memory Device" | grep -i size | egrep -i "MB|GB" ; done
+
+
+Processor
+---------
+dmidecode-out:-
+
+for i in $(cat list); do echo $i------;cat extracted/$i/dmidecode | grep -A40 "Processor Information" | egrep -v "Unknown Processor"|egrep "Version:" | sort -u ; done
+
+lscpu-out:-
+
+for i in $(cat list); do echo $i------;cat extracted/$i/lscpu| grep -v "node"| egrep -w "CPU\(s\):|Model name|Core\(s\)"; done
+
+Storage
+------
+
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/parted-list | grep "Model:" | sort -u ; done
+
+Ip Address
+----------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/ip-a | grep inet | egrep -v "inet6|127.0.0.1" | awk '{print $2}' ; done
+
+
+Network errors[ifconfig]
+-------------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/ifconfig-a  | egrep "RX packets|TX packets" | awk '{print $3}' | sort -u; done
+
+(or)
+
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/ifconfig-a  | grep errors  | sort -u; done | more
+
+
+Active interfaces
+---------------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/ethtool-* | egrep -i "Settings for|Link detected"; done
+
+
+error-logs-display
+------------------
+
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/messages-failed;cat extracted/$i/secure-failed; done | more
+
+DIMM Error status
+----------------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/dmidecode | grep -i -A10 "Memory Module Information" | grep -i "Error Status" | sort -u ; done;
+
+BIOS Info
+---------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/dmidecode | egrep -A3 "BIOS Information"; done; 
+
+kernel and rhel version
+----------------------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/uname-a | awk '{print $3}';cat extracted/$i/redhat-release; done; 
+
+default kernel
+--------
+grub
+====
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/grub.conf  | egrep "default|kernel" | egrep -v "#" | grep -A1 "default"; done;
+
+grub2
+=====
+
+Tainted
+-------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/tainted; done; 
+
+Packages Count
+----------------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/rpm-qa | wc -l; done; 
+
+
+Check direct root access
+-----------------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/sshd_config | grep "PermitRootLogin"; done; 
+
+
+pam-password-check
+------------------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/system-auth  | grep -i password; done; 
+
+sudo-check
+---------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/sudoers | egrep "wheel|ALL|NOPASSWD|%"; done;
+
+multipath
+---------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/multipath-ll; done;
+
+lvm
+----
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/vgdisplay  | grep -i "Format"; done;
+
+
+nfs/cifs
+--------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/df-hT  | egrep -i "nfs|cifs"; done;
+
+fstab:-
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/fstab  | egrep -i "nfs|cifs"; done;
+
+speed and duplex
+----------------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/ethtool-eth*; done;
+
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/ethtool-eth* | egrep -i "Speed|Duplex|Settings for|Auto-negotiation"; done;
+
+bonding check
+------------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/ifcfg-* | egrep -i "MASTER|SLAVE"; done;
+
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/ifcfg-* | egrep -i "DEVICE|IPADDR|MASTER|SLAVE"; done;
+
+unused services
+---------------
+chkconfig
+==========
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/chkconfig | egrep -i "3:on" | egrep -i "rhnsd|mdmonitor|gpm|xinetd|anacron|haldaemon|iscsi|isdn|kudzu|lm_sensors|Messagebus|Pcscd|Setroubleshoot|xfs"; done;
+
+systemctl
+==========
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/systemctl-list-unit-files | egrep -i "rhnsd|mdmonitor|gpm|xinetd|anacron|haldaemon|iscsi|isdn|kudzu|lm_sensors|Messagebus|Pcscd|Setroubleshoot|xfs" | grep -v "disabled"; done;
+
+
+ntp check
+-------
+
+for i in $(cat list); do echo --------------------$i------; echo "NTP Configured Server:";cat extracted/$i/ntp.conf  | grep -v "#" | grep -i  "server"; cat extracted/$i/ntpstat; cat extracted/$i/ntpq-p;  cat extracted/$i/date; done;
+
+chrony
+-----
+for i in $(cat list); do echo --------------------$i------; echo "NTP Configured Server:";cat extracted/$i/chrony.conf  | grep -v "#" | grep -i  "server"; cat extracted/$i/ntpstat; cat extracted/$i/ntpq-p;  cat extracted/$i/date; done;
+
+kdumb check
+-----------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/kdump | egrep -v "#"; done;
+
+syslog conf
+----------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/*syslog.conf | grep -v "#" |egrep -i "SYSLOGD_OPTIONS|log|.\*"; done;
+
+hugepage size
+-----------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/hugepagesize; done;
+
+check kernel parameters
+-----------------------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/sysctl.conf | grep "kernel"; done;
+
+selinux status
+------------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/sestatus | egrep -i "SELinux status"; done; 
+
+iptables
+-----
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/iptables-L; done;
+
+
+Check tcp wrapper
+----------------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/hosts.allow| grep -v "#";cat extracted/$i/hosts.deny| grep -v "#"; done;
+
+uptime
+------
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/uptime| awk '{print $3}'; done
+
+disk
+---
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/df-hT; done
+
+sar
+----
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/sar-cpu; done
+
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/sar-cpu-load; done
+
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/sar-cpu-proc; done
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/sar-memory; done
+
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/sar-io; done
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/sar-disk; done
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/sar-network-DEV; done
+for i in $(cat list); do echo --------------------$i------;cat extracted/$i/sar-network-ALL; done
+
+Ram usage percent
+---------
+for i in $(cat list); do echo --------------------$i------;M_USED=$(cat extracted/$i/free-m  | grep "Mem" | awk '{print $3}'); echo "Used Memory=$M_USED"; M_TOTAL=$(cat extracted/$i/free-m  | grep "Mem" | awk '{print $2}'); echo "Total Memory=$M_TOTAL"; ME_USE_P=$(bc -l <<< "($M_USED / $M_TOTAL) * 100"); echo "Memory used in percent=$ME_USE_P"; done
+
+
+swap usage percent
+-------------
+for i in $(cat list); do echo --------------------$i------;S_USED=$(cat extracted/$i/free-m | grep -i swap | awk '{print $3}'); echo "Used Swap=$S_USED"; S_TOTAL=$(cat extracted/$i/free-m | grep -i swap | awk '{print $2}'); echo "Total Swap=$S_TOTAL"; SW_USE_P=$(bc -l <<< "($S_USED / $S_TOTAL) * 100"); echo "Swap used in percent=$SW_USE_P"; done
+
+
+
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+add in sc===============
+copy directory /etc/sysctl.d/ also
+free -h
+copy /etc/default/grub
+include yum history
+chrony tracking and sources
+
+
+Ref:
+$(bc -l <<< "scale=2;($a / $b) * 100"); echo $c;
+a=3;b=10; c=$(bc -l <<< "scale=2;($a / $b) * 100"); echo $c;

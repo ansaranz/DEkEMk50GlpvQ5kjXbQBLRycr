@@ -1,0 +1,149 @@
+#!/bin/bash
+#Company : KuwaitNET
+#RHEL 6 Health Check
+#set -x
+
+DATE=$(date +%d_%b_%Y)
+REPORT=/tmp/KuwaitNET-$(hostname)-$DATE-pm-report
+#mv "$REPORT" "$REPORT"-old
+touch "$REPORT"
+
+
+#VERSION=$(cat /etc/redhat-release | awk '{print $7}' | cut -d'.' -f1)
+
+			## FUNCTIONS ##
+
+#disk Usage
+disk_usage () {
+	#dfout=$(df -hT | grep -vE '^Filesystem|tmpfs|cdrom' | awk '{ print $6 " " $2 " " $1}' | tr -d '\r')
+	#dfperc=$(echo -e "$dfout" | awk '{ print $1}' | cut -d'%' -f1)
+  	#dfpart=$(echo -e "$dfout" | awk '{ print $3 }')
+  	#dffs=$(echo -e "$dfout" | awk '{print $2}')
+        dfperc=$(df -hT | grep -vE '^Filesystem|tmpfs|cdrom' | grep -o "[^ ]*%[^ ]*"  | cut -d "%" -f1)
+	flag=0
+	for i in $dfperc 
+	do
+	   if [ "$i" -ge 90 ]; then
+    	   	#echo -e "$dfpart" - "$dffs" - "$i"%
+		echo -e "Disk usage Critical($i%)"
+		let flag++
+  	   fi
+	done
+	if [ $flag -eq 0 ]; then
+                echo -e "Disk usage is normal"
+	fi
+
+};
+
+
+#Redhat Subscription Check: subscription-manager 
+rhel7_reg_check () {
+	SUB_OUT=/tmp/subtest-out.txt
+	subscription-manager status >> $SUB_OUT
+	cat "$SUB_OUT"
+	STAT_VALUE=$(egrep -i "Overall Status" $SUB_OUT | awk '{print $3}')
+	rm "$SUB_OUT"
+ 	if [ $STAT_VALUE == Current ] ; then
+   	 	echo -e "Subscription Manager: Registered with RedHat \n \n \n"
+	elif [ $STAT_VALUE == Unknown ] ; then
+		echo -e "Subscription Manager: Not Registered(Unknown) \n \n \n"
+   	 
+ 	else
+   		echo -e "Subscription Manager Failed : Not Defined \n\n"
+ 	fi
+};
+
+
+#Redhat Subscription Check : RHN
+rhel6_reg_check () {
+	rhn_check
+	if [ $? -eq 0 ] ; then
+   	 	echo -e "System has a Valid RHN registration \n"
+   		#echo -e "Software Updates : `yum check-update --security |grep -i available`"
+	else
+		echo -e "RHN-CHECK FAILED : Try Subscription Manager \n"
+#		rhel7_reg_check
+	fi
+};
+
+## NTP CHECK ##
+ntp-check () {
+ 	#echo -e "\n Checking NTP Service \n ===================="
+ 	#echo -e "====================" 
+ 	service ntpd status > /dev/null
+ 	if [ $? -eq 0 ] ; then
+    		echo -e "\nStatus : NTPD Configured in the server"
+    		echo -e "\n   Ntp Status \n   -------------------\n $(ntpstat)" 
+    		echo -e " \n   Ntp Peer\n   -------------------\n $(ntpq -p)"
+    	else
+       		echo -e "\n Ntp service not configured in the server"
+    		
+ 	fi
+};
+
+#Intro
+{ 
+  echo -e "\t\tHEALTH  CHECK  REPORT"
+  echo -e "\t###################################"
+  echo -e "\tDate\t\t: $DATE"
+  echo -e "\tCompany\t\t: KuwaitNET"
+  echo -e "\tIP's\t\t: $(ip a | grep -i "inet " | awk  '{print $2}' | grep -v 127.0.0.1 | cut -d'/' -f1 | tr "\n" "\t")"
+  echo -e "\tHostname\t: $(hostname)"
+  echo -e "\n"
+
+#system information
+  echo -e "System Information" 
+  echo -e "======================" 
+  echo -e "OS Release \t: $(cat /etc/redhat-release)"
+  echo -e "Kernel \t \t: $(uname  -r)" 
+  echo -e "Last Boot \t: $(who -b | awk '{print $3,$4}')" 
+  echo -e "Uptime \t\t: $(uptime | sed 's/.*up \([^,]*\), .*/\1/')"
+  echo -e "Date \t\t: $(date)" 
+  echo -e "IP addresses \t: $(ifconfig |grep "inet " | grep -v 127.0.0.1  | awk '{print $2}' |cut -d":" -f2 | tr "\n" "\t")"
+  #echo -e "Number of CPUs : $(lscpu | grep -e "^CPU(s):" | cut -f2 -d: | awk '{print $1}')"
+  echo -e "Number of CPUs \t: $(grep -c processor /proc/cpuinfo )" 
+  echo -e "Load Average \t: $(uptime | awk -F'load average:' '{ print $2 }' | cut -f1 -d,)"
+  echo -e "RAM Total\t: $(free -m | head -2 | tail -1| awk '{print $2}') MB" 
+  echo -e "RAM Free\t: $(free -m | head -2 | tail -1| awk '{print $4}') MB" 
+  echo -e "SWAP Total\t: $(free -m | head -4 | tail -1| awk '{print $2}') MB" 
+  echo -e "SWAP Free\t: $(free -m | head -4 | tail -1| awk '{print $4}') MB" 
+  echo -e "Highest Disk usage \t: $(disk_usage)" 
+  echo -e "\n" 
+
+#Disk Usage
+  echo -e "Disk Usage\n======================\n$(df -hT)\n"
+
+#memory information
+  echo -e "Memmory Usage\n======================\n$(free -m)\n"
+
+#load and processes
+  echo -e "Load and Session Users\n======================\n$(w)\n" 
+  echo -e "Top Processes\n======================\n$(top -n 1 -b |head -n 12|tail -n 6)\n"
+
+#selinux
+  echo -e "SElinux\n======================\n$(sestatus)\n" 
+
+#Redhat Registration
+  echo -e "Redhat Registration Check \n======================\n$(rhel6_reg_check)\n"
+
+#NTP Service Info
+  echo -e "\nNTP Service Info \n======================$(ntp-check)\n"
+
+#firewall rules
+  echo -e "Firewall Rules\n======================\n$(iptables -L)\n" 
+
+
+#Messages
+echo -e "Message Log\n======================" 
+egrep '(error|fail|invalid)' /var/log/messages
+echo -e "\nSecure Log\n======================" 
+egrep '(error|fail|invalid)' /var/log/secure 
+
+} >> "$REPORT"
+more "$REPORT"
+#gzip "$REPORT"
+#chmod 777 "$REPORT".gz
+#echo "$REPORT"
+rm "$REPORT"
+exit 0
+
